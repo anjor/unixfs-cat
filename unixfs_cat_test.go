@@ -29,11 +29,11 @@ func TestConcatNodes(t *testing.T) {
 		t.Fatal("failed to marshal", err)
 	}
 
-	t.Logf("parent := %v", bytes.NewBuffer(n1).String())
-	t.Logf("parent := %v", bytes.NewBuffer(n2).String())
+	t.Logf("node 1 := %v", bytes.NewBuffer(n1).String())
+	t.Logf("node 2 := %v", bytes.NewBuffer(n2).String())
 	t.Logf("parent := %v", bytes.NewBuffer(m).String())
 
-	t.Logf("parent := %v", node1.String())
-	t.Logf("parent := %v", node2.String())
+	t.Logf("node 1 := %v", node1.String())
+	t.Logf("node 2 := %v", node2.String())
 	t.Logf("parent := %v", parent.String())
 }
