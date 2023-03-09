@@ -18,7 +18,6 @@ func ConcatNodes(nodes ...*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
 		links = append(links, format.Link{
 			Name: "",
 			Cid:  node.Cid(),
-			Size: s,
 		})
 
 		nd.AddBlockSize(s)
