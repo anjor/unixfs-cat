@@ -1,12 +1,10 @@
 package unixfs_cat
 
 import (
-	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
 	unixfspb "github.com/ipfs/go-unixfs/pb"
-	mh "github.com/multiformats/go-multihash"
 )
 
 func ConcatNodes(nodes ...*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
@@ -14,7 +12,11 @@ func ConcatNodes(nodes ...*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
 	var links []format.Link
 
 	for _, node := range nodes {
-		s := uint64(len(node.Data()))
+		un, err := unixfs.ExtractFSNode(node)
+		if err != nil {
+			return nil, err
+		}
+		s := un.FileSize()
 		links = append(links, format.Link{
 			Name: "",
 			Cid:  node.Cid(),
@@ -27,7 +29,6 @@ func ConcatNodes(nodes ...*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
 		return nil, err
 	}
 	pbn := merkledag.NodeWithData(ndb)
-	pbn.SetCidBuilder(cid.V1Builder{MhType: uint64(mh.SHA2_256)})
 
 	for _, l := range links {
 		err := pbn.AddRawLink("", &l)

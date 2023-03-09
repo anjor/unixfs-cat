@@ -1,16 +1,13 @@
 package unixfs_cat
 
 import (
-	"context"
 	"github.com/ipfs/go-cid"
-	client "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
-	"github.com/ipfs/interface-go-ipfs-core/path"
 	"testing"
 )
 
-func TestConcatNodes(t *testing.T) {
+func TestLinks(t *testing.T) {
 	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5))
 	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6))
 
@@ -43,37 +40,27 @@ func TestConcatNodes(t *testing.T) {
 }
 
 // Needs a local ipfs daemon running
-func TestConcatNodes2(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func TestSizes(t *testing.T) {
+	str1 := "foo"
+	str2 := "bar"
 
-	api, err := client.NewLocalApi()
-	if err != nil {
-		t.Fatal("couldn't connect to local daemon")
-	}
+	expected := uint64(len(str1)) + uint64(len(str2))
 
-	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5))
-	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6))
-
-	api.Dag().Add(ctx, node1)
-	api.Dag().Add(ctx, node2)
+	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte(str1), uint64(len(str1))))
+	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte(str2), uint64(len(str2))))
 
 	nd, err := ConcatNodes(node1, node2)
-
-	err = api.Dag().Add(ctx, nd)
 	if err != nil {
-		t.Fatalf("failed to put: %v", err)
+		t.Fatal("concat failed", err)
 	}
 
-	n1, _ := api.Object().Data(ctx, path.IpfsPath(node1.Cid()))
-	n2, _ := api.Object().Data(ctx, path.IpfsPath(node2.Cid()))
-	n, _ := api.Object().Data(ctx, path.IpfsPath(nd.Cid()))
+	n, err := unixfs.ExtractFSNode(nd)
+	if err != nil {
+		t.Fatal("failed to extract node", err)
+	}
 
-	t.Logf("n1: %s", n1)
-	t.Logf("n1 cid: %s", node1.Cid())
-	t.Logf("n2: %s", n2)
-	t.Logf("n2 cid: %s", node2.Cid())
-	t.Logf("n: %s", n)
-	t.Logf("n cid: %s", nd.Cid())
-
+	s := n.FileSize()
+	if s != expected {
+		t.Fatalf("expected size %d but found %d", expected, s)
+	}
 }
