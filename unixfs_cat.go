@@ -1,6 +1,8 @@
 package unixfs_cat
 
 import (
+	"errors"
+	"fmt"
 	"github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
@@ -16,6 +18,14 @@ func ConcatNodes(nodes ...*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		switch t := un.Type(); t {
+		case unixfs.TRaw, unixfs.TFile:
+			break
+		default:
+			return nil, errors.New(fmt.Sprintf("can only concat raw or file types, instead found %s", t))
+		}
+
 		s := un.FileSize()
 		links = append(links, format.Link{
 			Name: "",

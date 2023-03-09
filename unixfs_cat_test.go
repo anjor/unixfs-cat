@@ -1,6 +1,7 @@
 package unixfs_cat
 
 import (
+	"fmt"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
@@ -39,7 +40,6 @@ func TestLinks(t *testing.T) {
 
 }
 
-// Needs a local ipfs daemon running
 func TestSizes(t *testing.T) {
 	str1 := "foo"
 	str2 := "bar"
@@ -62,5 +62,18 @@ func TestSizes(t *testing.T) {
 	s := n.FileSize()
 	if s != expected {
 		t.Fatalf("expected size %d but found %d", expected, s)
+	}
+}
+
+func TestDirectory(t *testing.T) {
+	d1 := unixfs.NewFSNode(unixfs.TDirectory)
+	d1b, _ := d1.GetBytes()
+	p1 := merkledag.NodeWithData(d1b)
+
+	expected := fmt.Sprintf("can only concat raw or file types, instead found %s", unixfs.TDirectory)
+	_, err := ConcatNodes(p1, p1)
+
+	if err.Error() != expected {
+		t.Fatalf("expected error %s, but instead got %s", expected, err)
 	}
 }
