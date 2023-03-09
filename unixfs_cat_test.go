@@ -4,14 +4,15 @@ import (
 	"context"
 	"github.com/ipfs/go-cid"
 	client "github.com/ipfs/go-ipfs-http-client"
-	"github.com/ipfs/go-libipfs/files"
 	"github.com/ipfs/go-merkledag"
+	"github.com/ipfs/go-unixfs"
+	"github.com/ipfs/interface-go-ipfs-core/path"
 	"testing"
 )
 
 func TestConcatNodes(t *testing.T) {
-	node1 := merkledag.NodeWithData([]byte("hello"))
-	node2 := merkledag.NodeWithData([]byte("world!"))
+	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5))
+	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6))
 
 	parent, err := ConcatNodes(node1, node2)
 	if err != nil {
@@ -51,41 +52,28 @@ func TestConcatNodes2(t *testing.T) {
 		t.Fatal("couldn't connect to local daemon")
 	}
 
-	p1, err := api.Unixfs().Add(ctx, strFile("hello")())
-	if err != nil {
-		t.Fatal("failed to add data")
-	}
-	t.Logf("p1: %s", p1.String())
-	n1, err := api.Object().Get(ctx, p1)
-	if err != nil {
-		t.Fatal("failed to get node")
-	}
+	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5))
+	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6))
 
-	p2, err := api.Unixfs().Add(ctx, strFile("world")())
-	if err != nil {
-		t.Fatal("failed to add data")
-	}
-	t.Logf("p2: %s", p2.String())
+	api.Dag().Add(ctx, node1)
+	api.Dag().Add(ctx, node2)
 
-	n2, err := api.Object().Get(ctx, p2)
-	if err != nil {
-		t.Fatal("failed to get node")
-	}
-
-	nd1, _ := n1.(*merkledag.ProtoNode)
-	nd2, _ := n2.(*merkledag.ProtoNode)
-
-	nd, err := ConcatNodes(nd1, nd2)
+	nd, err := ConcatNodes(node1, node2)
 
 	err = api.Dag().Add(ctx, nd)
 	if err != nil {
 		t.Fatalf("failed to put: %v", err)
 	}
-	t.Logf("bs: %s", nd.Cid())
-}
 
-func strFile(data string) func() files.Node {
-	return func() files.Node {
-		return files.NewBytesFile([]byte(data))
-	}
+	n1, _ := api.Object().Data(ctx, path.IpfsPath(node1.Cid()))
+	n2, _ := api.Object().Data(ctx, path.IpfsPath(node2.Cid()))
+	n, _ := api.Object().Data(ctx, path.IpfsPath(nd.Cid()))
+
+	t.Logf("n1: %s", n1)
+	t.Logf("n1 cid: %s", node1.Cid())
+	t.Logf("n2: %s", n2)
+	t.Logf("n2 cid: %s", node2.Cid())
+	t.Logf("n: %s", n)
+	t.Logf("n cid: %s", nd.Cid())
+
 }
