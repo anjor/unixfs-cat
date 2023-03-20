@@ -19,13 +19,10 @@ func ConcatNodes(nodes ...ipld.Node) (*merkledag.ProtoNode, error) {
 		switch node := node.(type) {
 
 		case *merkledag.RawNode:
-			s, err := unixfs.DataSize(node.RawData())
-			if err != nil {
-				return nil, err
-			}
+			s := len(node.RawData())
 
 			links = addLink(links, node.Cid())
-			nd.AddBlockSize(s)
+			nd.AddBlockSize(uint64(s))
 
 		case *merkledag.ProtoNode:
 			un, err := unixfs.ExtractFSNode(node)

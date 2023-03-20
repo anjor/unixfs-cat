@@ -1,18 +1,35 @@
 package unixfs_cat
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
+	"github.com/ipld/go-ipld-prime"
 	"testing"
 )
 
-func TestLinks(t *testing.T) {
-	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5))
-	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6))
+func getCid(nd ipld.Node) (cid.Cid, error) {
+	switch nd := nd.(type) {
+	case *merkledag.ProtoNode:
+		return nd.Cid(), nil
+	case *merkledag.RawNode:
+		return nd.Cid(), nil
+	default:
+		return cid.Undef, errors.New("unknown node")
+	}
+}
 
-	parent, err := ConcatNodes(node1, node2)
+func TestLinks(t *testing.T) {
+	nodes := []ipld.Node{
+		merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5)),
+		merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6)),
+		merkledag.NewRawNode([]byte("foo")),
+		merkledag.NewRawNode([]byte("bar")),
+	}
+
+	parent, err := ConcatNodes(nodes...)
 	if err != nil {
 		t.Fatal("concat failed", err)
 	}
@@ -22,18 +39,18 @@ func TestLinks(t *testing.T) {
 		links[l.Cid] = true
 	}
 
-	_, ok := links[node1.Cid()]
-	if !ok {
-		t.Fatalf("link %s not found", node1.Cid())
-	}
-	delete(links, node1.Cid())
+	for _, node := range nodes {
+		cid, err := getCid(node)
+		if err != nil {
+			t.Fatal("getting cid failed", err)
+		}
 
-	_, ok = links[node2.Cid()]
-	if !ok {
-		t.Fatalf("link %s not found", node2.Cid())
+		_, ok := links[cid]
+		if !ok {
+			t.Fatalf("link %s not found", cid)
+		}
+		delete(links, cid)
 	}
-	delete(links, node2.Cid())
-
 	if len(links) != 0 {
 		t.Fatalf("unexpected link")
 	}
