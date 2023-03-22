@@ -11,7 +11,12 @@ import (
 	"github.com/ipld/go-ipld-prime"
 )
 
-func ConcatNodes(nodes ...ipld.Node) (*merkledag.ProtoNode, error) {
+type nodeWithLinks struct {
+	node  *unixfs.FSNode
+	links []format.Link
+}
+
+func ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
 	nd := unixfs.NewFSNode(unixfspb.Data_File)
 	var links []format.Link
 
@@ -46,10 +51,26 @@ func ConcatNodes(nodes ...ipld.Node) (*merkledag.ProtoNode, error) {
 		}
 	}
 
-	return constructPbNode(nd, links)
+	return constructPbNodes([]nodeWithLinks{{node: nd, links: links}})
 }
 
-func constructPbNode(nd *unixfs.FSNode, links []format.Link) (pbn *merkledag.ProtoNode, err error) {
+func constructPbNodes(ndWLs []nodeWithLinks) (pbns []*merkledag.ProtoNode, err error) {
+	for _, ndWl := range ndWLs {
+		pbn, err := constructPbNode(ndWl)
+		if err != nil {
+			return nil, err
+		}
+
+		pbns = append(pbns, pbn)
+	}
+
+	return
+}
+
+func constructPbNode(ndWL nodeWithLinks) (pbn *merkledag.ProtoNode, err error) {
+	nd := ndWL.node
+	links := ndWL.links
+
 	ndb, err := nd.GetBytes()
 	if err != nil {
 		return
