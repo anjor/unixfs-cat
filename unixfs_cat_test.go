@@ -29,7 +29,8 @@ func TestLinks(t *testing.T) {
 		merkledag.NewRawNode([]byte("bar")),
 	}
 
-	parent, err := ConcatNodes(nodes...)
+	parents, err := ConcatNodes(nodes...)
+	parent := parents[0]
 	if err != nil {
 		t.Fatal("concat failed", err)
 	}
@@ -66,7 +67,8 @@ func TestSizes(t *testing.T) {
 	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte(str1), uint64(len(str1))))
 	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte(str2), uint64(len(str2))))
 
-	nd, err := ConcatNodes(node1, node2)
+	nds, err := ConcatNodes(node1, node2)
+	nd := nds[0]
 	if err != nil {
 		t.Fatal("concat failed", err)
 	}

@@ -18,32 +18,39 @@ type nodeWithLinks struct {
 
 func ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
 	var pbns []*merkledag.ProtoNode
-
+	ndwl := nodeWithLinks{node: unixfs.NewFSNode(unixfspb.Data_File)}
 	for _, node := range nodes {
-		ndwl := nodeWithLinks{
-			node: unixfs.NewFSNode(unixfspb.Data_File),
-		}
+		if len(ndwl.node.BlockSizes()) < helpers.DefaultLinksPerBlock {
+			if err := ndwl.addLink(node); err != nil {
+				return nil, err
+			}
+		} else {
+			pbn, err := ndwl.constructPbNode()
+			if err != nil {
+				return nil, err
+			}
 
-		for len(ndwl.node.BlockSizes()) < helpers.DefaultLinksPerBlock {
+			pbns = append(pbns, pbn)
 
+			ndwl = nodeWithLinks{node: unixfs.NewFSNode(unixfspb.Data_File)}
 			if err := ndwl.addLink(node); err != nil {
 				return nil, err
 			}
 
 		}
-
-		pbn, err := ndwl.constructPbNode()
-		if err != nil {
-			return nil, err
-		}
-
-		pbns = append(pbns, pbn)
 	}
+
+	pbn, err := ndwl.constructPbNode()
+	if err != nil {
+		return nil, err
+	}
+
+	pbns = append(pbns, pbn)
 
 	return pbns, nil
 }
 
-func (ndwl nodeWithLinks) constructPbNode() (pbn *merkledag.ProtoNode, err error) {
+func (ndwl *nodeWithLinks) constructPbNode() (pbn *merkledag.ProtoNode, err error) {
 	ndb, err := ndwl.node.GetBytes()
 	if err != nil {
 		return
@@ -61,7 +68,7 @@ func (ndwl nodeWithLinks) constructPbNode() (pbn *merkledag.ProtoNode, err error
 	return
 }
 
-func (ndwl nodeWithLinks) addLink(node ipld.Node) error {
+func (ndwl *nodeWithLinks) addLink(node ipld.Node) error {
 
 	switch node := node.(type) {
 
