@@ -3,17 +3,16 @@ package unixfs_cat
 import (
 	"errors"
 	"fmt"
-	"github.com/ipfs/go-ipld-format"
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
 	"github.com/ipfs/go-unixfs/importer/helpers"
 	unixfspb "github.com/ipfs/go-unixfs/pb"
-	"github.com/ipld/go-ipld-prime"
 )
 
 type nodeWithLinks struct {
 	node  *unixfs.FSNode
-	links []format.Link
+	links []ipld.Link
 }
 
 func ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
@@ -75,7 +74,7 @@ func (ndwl *nodeWithLinks) addLink(node ipld.Node) error {
 	case *merkledag.RawNode:
 		s := len(node.RawData())
 
-		ndwl.links = append(ndwl.links, format.Link{Name: "", Cid: node.Cid()})
+		ndwl.links = append(ndwl.links, ipld.Link{Name: "", Cid: node.Cid()})
 		ndwl.node.AddBlockSize(uint64(s))
 
 	case *merkledag.ProtoNode:
@@ -92,7 +91,7 @@ func (ndwl *nodeWithLinks) addLink(node ipld.Node) error {
 
 		s := un.FileSize()
 
-		ndwl.links = append(ndwl.links, format.Link{Name: "", Cid: node.Cid()})
+		ndwl.links = append(ndwl.links, ipld.Link{Name: "", Cid: node.Cid()})
 		ndwl.node.AddBlockSize(s)
 
 	default:
