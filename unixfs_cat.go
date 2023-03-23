@@ -6,7 +6,6 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
-	"github.com/ipfs/go-unixfs/importer/helpers"
 	unixfspb "github.com/ipfs/go-unixfs/pb"
 )
 
@@ -15,11 +14,15 @@ type nodeWithLinks struct {
 	links []ipld.Link
 }
 
-func ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
+type ParentDagBuilder struct {
+	maxLinks int
+}
+
+func (pdb ParentDagBuilder) ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
 	var pbns []*merkledag.ProtoNode
 	ndwl := nodeWithLinks{node: unixfs.NewFSNode(unixfspb.Data_File)}
 	for _, node := range nodes {
-		if len(ndwl.node.BlockSizes()) < helpers.DefaultLinksPerBlock {
+		if len(ndwl.node.BlockSizes()) < pdb.maxLinks {
 			if err := ndwl.addLink(node); err != nil {
 				return nil, err
 			}
