@@ -42,7 +42,7 @@ func (ndwl *nodeWithLinks) concatFileNode(node ipld.Node) error {
 	case *merkledag.RawNode:
 		s := len(node.RawData())
 
-		ndwl.links = append(ndwl.links, ipld.Link{Name: "", Cid: node.Cid()})
+		ndwl.links = append(ndwl.links, ipld.Link{Cid: node.Cid()})
 		ndwl.node.AddBlockSize(uint64(s))
 
 	case *merkledag.ProtoNode:
@@ -59,7 +59,7 @@ func (ndwl *nodeWithLinks) concatFileNode(node ipld.Node) error {
 
 		s := un.FileSize()
 
-		ndwl.links = append(ndwl.links, ipld.Link{Name: "", Cid: node.Cid()})
+		ndwl.links = append(ndwl.links, ipld.Link{Cid: node.Cid()})
 		ndwl.node.AddBlockSize(s)
 
 	default:

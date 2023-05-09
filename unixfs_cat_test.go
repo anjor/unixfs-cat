@@ -147,8 +147,47 @@ func TestMaxLinks(t *testing.T) {
 	if len(parents) != expected {
 		t.Fatalf("expected %d parent nodes, got %d parent nodes", expected, len(parents))
 	}
-
 }
 
-func TestMaxLink2(t *testing.T) {
+func TestParentDirectory(t *testing.T) {
+	pdb := ParentDagBuilder{maxLinks: helpers.DefaultLinksPerBlock}
+	nodes := []NodeWithName{
+		{node: merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5)), name: "hello"},
+		{node: merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6)), name: "world!"},
+	}
+
+	dir, err := pdb.ConstructParentDirectory(nodes...)
+	if err != nil {
+		t.Fatal("constructing parent directory failed", err)
+	}
+
+	links := make(map[cid.Cid]bool)
+	names := make(map[string]bool)
+	for _, l := range dir.Links() {
+		links[l.Cid] = true
+		names[l.Name] = true
+	}
+
+	for _, node := range nodes {
+		cid, err := getCid(node.node)
+		if err != nil {
+			t.Fatal("getting cid failed", err)
+		}
+
+		_, ok := links[cid]
+		if !ok {
+			t.Fatalf("link %s not found", cid)
+		}
+		delete(links, cid)
+
+		name := node.name
+		_, ok = names[name]
+		if !ok {
+			t.Fatalf("name %s not found", name)
+		}
+		delete(names, name)
+	}
+	if len(links) != 0 {
+		t.Fatalf("unexpected link")
+	}
 }
