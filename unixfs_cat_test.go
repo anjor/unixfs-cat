@@ -31,7 +31,7 @@ func TestLinks(t *testing.T) {
 		merkledag.NewRawNode([]byte("bar")),
 	}
 
-	parents, err := pdb.ConcatNodes(nodes...)
+	parents, err := pdb.ConcatFileNodes(nodes...)
 	if err != nil {
 		t.Fatal("concat failed", err)
 	}
@@ -71,7 +71,7 @@ func TestSizes(t *testing.T) {
 	node1 := merkledag.NodeWithData(unixfs.FilePBData([]byte(str1), uint64(len(str1))))
 	node2 := merkledag.NodeWithData(unixfs.FilePBData([]byte(str2), uint64(len(str2))))
 
-	nds, err := pdb.ConcatNodes(node1, node2)
+	nds, err := pdb.ConcatFileNodes(node1, node2)
 	if err != nil {
 		t.Fatal("concat failed", err)
 	}
@@ -96,7 +96,7 @@ func TestDirectory(t *testing.T) {
 	p1 := merkledag.NodeWithData(d1b)
 
 	expected := fmt.Sprintf("can only concat raw or file types, instead found %s", unixfs.TDirectory)
-	_, err := pdb.ConcatNodes(p1, p1)
+	_, err := pdb.ConcatFileNodes(p1, p1)
 
 	if err.Error() != expected {
 		t.Fatalf("expected error %s, but instead got %s", expected, err)
@@ -114,7 +114,7 @@ func TestMaxLinks(t *testing.T) {
 
 	expected := 2
 
-	parents, err := pdb.ConcatNodes(node1, node2)
+	parents, err := pdb.ConcatFileNodes(node1, node2)
 	if err != nil {
 		t.Fatalf("concat failed: %s\n", err)
 	}
@@ -134,16 +134,60 @@ func TestMaxLinks(t *testing.T) {
 		nodes = append(nodes, ipld.Node(n))
 	}
 
-	parents, err = pdb.ConcatNodes(nodes...)
+	parents, err = pdb.ConcatFileNodes(nodes...)
 	if err != nil {
 		t.Fatalf("concat failed: %s\n", err)
+	}
+
+	for _, p := range parents {
+		fmt.Printf("node = %s\n", p.Cid())
+		fmt.Printf("links = %v\n", p.Links())
 	}
 
 	if len(parents) != expected {
 		t.Fatalf("expected %d parent nodes, got %d parent nodes", expected, len(parents))
 	}
-
 }
 
-func TestMaxLink2(t *testing.T) {
+func TestParentDirectory(t *testing.T) {
+	pdb := ParentDagBuilder{maxLinks: helpers.DefaultLinksPerBlock}
+	nodes := []NodeWithName{
+		{node: merkledag.NodeWithData(unixfs.FilePBData([]byte("hello"), 5)), name: "hello"},
+		{node: merkledag.NodeWithData(unixfs.FilePBData([]byte("world!"), 6)), name: "world!"},
+	}
+
+	dir, err := pdb.ConstructParentDirectory(nodes...)
+	if err != nil {
+		t.Fatal("constructing parent directory failed", err)
+	}
+
+	links := make(map[cid.Cid]bool)
+	names := make(map[string]bool)
+	for _, l := range dir.Links() {
+		links[l.Cid] = true
+		names[l.Name] = true
+	}
+
+	for _, node := range nodes {
+		cid, err := getCid(node.node)
+		if err != nil {
+			t.Fatal("getting cid failed", err)
+		}
+
+		_, ok := links[cid]
+		if !ok {
+			t.Fatalf("link %s not found", cid)
+		}
+		delete(links, cid)
+
+		name := node.name
+		_, ok = names[name]
+		if !ok {
+			t.Fatalf("name %s not found", name)
+		}
+		delete(names, name)
+	}
+	if len(links) != 0 {
+		t.Fatalf("unexpected link")
+	}
 }

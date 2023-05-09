@@ -1,12 +1,12 @@
 package unixfs_cat
 
 import (
-	"errors"
-	"fmt"
+	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
 	unixfspb "github.com/ipfs/go-unixfs/pb"
+	"github.com/multiformats/go-multihash"
 )
 
 type nodeWithLinks struct {
@@ -14,16 +14,21 @@ type nodeWithLinks struct {
 	links []ipld.Link
 }
 
+type NodeWithName struct {
+	node ipld.Node
+	name string
+}
+
 type ParentDagBuilder struct {
 	maxLinks int
 }
 
-func (pdb ParentDagBuilder) ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
+func (pdb ParentDagBuilder) ConcatFileNodes(nodes ...ipld.Node) ([]*merkledag.ProtoNode, error) {
 	var pbns []*merkledag.ProtoNode
 	ndwl := nodeWithLinks{node: unixfs.NewFSNode(unixfspb.Data_File)}
 	for _, node := range nodes {
 		if len(ndwl.node.BlockSizes()) < pdb.maxLinks {
-			if err := ndwl.addLink(node); err != nil {
+			if err := ndwl.concatFileNode(node); err != nil {
 				return nil, err
 			}
 		} else {
@@ -35,7 +40,7 @@ func (pdb ParentDagBuilder) ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoN
 			pbns = append(pbns, pbn)
 
 			ndwl = nodeWithLinks{node: unixfs.NewFSNode(unixfspb.Data_File)}
-			if err := ndwl.addLink(node); err != nil {
+			if err := ndwl.concatFileNode(node); err != nil {
 				return nil, err
 			}
 
@@ -52,54 +57,24 @@ func (pdb ParentDagBuilder) ConcatNodes(nodes ...ipld.Node) ([]*merkledag.ProtoN
 	return pbns, nil
 }
 
-func (ndwl *nodeWithLinks) constructPbNode() (pbn *merkledag.ProtoNode, err error) {
-	ndb, err := ndwl.node.GetBytes()
+func (pdb ParentDagBuilder) ConstructParentDirectory(nodes ...NodeWithName) (*merkledag.ProtoNode, error) {
+	ndbs, err := unixfs.NewFSNode(unixfspb.Data_Directory).GetBytes()
 	if err != nil {
-		return
+		return nil, err
+	}
+	nd := merkledag.NodeWithData(ndbs)
+	err = nd.SetCidBuilder(cid.V1Builder{Codec: cid.DagProtobuf, MhType: multihash.SHA2_256})
+	if err != nil {
+		return nil, err
 	}
 
-	pbn = merkledag.NodeWithData(ndb)
-
-	for _, l := range ndwl.links {
-		err = pbn.AddRawLink("", &l)
+	for _, node := range nodes {
+		s, _ := node.node.Size()
+		err = nd.AddRawLink(node.name, &ipld.Link{Cid: node.node.Cid(), Size: s})
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 
-	return
-}
-
-func (ndwl *nodeWithLinks) addLink(node ipld.Node) error {
-
-	switch node := node.(type) {
-
-	case *merkledag.RawNode:
-		s := len(node.RawData())
-
-		ndwl.links = append(ndwl.links, ipld.Link{Name: "", Cid: node.Cid()})
-		ndwl.node.AddBlockSize(uint64(s))
-
-	case *merkledag.ProtoNode:
-		un, err := unixfs.ExtractFSNode(node)
-		if err != nil {
-			return err
-		}
-
-		switch t := un.Type(); t {
-		case unixfs.TRaw, unixfs.TFile:
-		default:
-			return errors.New(fmt.Sprintf("can only concat raw or file types, instead found %s", t))
-		}
-
-		s := un.FileSize()
-
-		ndwl.links = append(ndwl.links, ipld.Link{Name: "", Cid: node.Cid()})
-		ndwl.node.AddBlockSize(s)
-
-	default:
-		return errors.New("unknown node")
-	}
-
-	return nil
+	return nd, nil
 }
